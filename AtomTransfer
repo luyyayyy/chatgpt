@@ -1,0 +1,54 @@
+import cosmos.base.v1beta1.Coin;
+import cosmos.tx.v1beta1.TxOuterClass;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
+import tendermint.types.Block;
+import tendermint.types.Peer;
+import tendermint.types.SignedHeader;
+import tendermint.types.Types;
+
+import java.util.Collections;
+import java.util.List;
+
+public class AtomTransfer {
+    public static void main(String[] args) {
+        // Cosmos 节点的 gRPC 地址
+        String grpcHost = "localhost";
+        int grpcPort = 9090;
+
+        // 发件人地址和私钥
+        String senderAddress = "YOUR_SENDER_ADDRESS";
+        String senderPrivateKey = "YOUR_SENDER_PRIVATE_KEY";
+
+        // 收件人地址
+        String recipientAddress = "RECIPIENT_ADDRESS";
+
+        // 转账金额
+        Coin amount = Coin.newBuilder()
+                .setDenom("uatom")
+                .setAmount("1000000") // 1 ATOM
+                .build();
+
+        // 创建 gRPC 通道
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(grpcHost, grpcPort).usePlaintext().build();
+
+        // 创建 Cosmos 客户端
+        CosmosClient cosmosClient = new CosmosClient(channel);
+
+        // 创建交易
+        TxOuterClass.TxBody txBody = cosmosClient.createTransferTxBody(senderAddress, recipientAddress, Collections.singletonList(amount));
+        TxOuterClass.AuthInfo authInfo = cosmosClient.createAuthInfo(senderAddress);
+
+        // 签名交易
+        TxOuterClass.Tx signedTx = cosmosClient.signTx(txBody, authInfo, senderPrivateKey);
+
+        // 广播交易
+        try {
+            TxOuterClass.BroadcastTxResponse response = cosmosClient.broadcastTx(signedTx);
+            System.out.println("Transaction hash: " + response.getTxResponse().getTxhash());
+        } catch (StatusRuntimeException e) {
+            e.printStackTrace();
+        }
+    }
+}
